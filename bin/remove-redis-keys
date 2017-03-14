@@ -1,0 +1,39 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Predis\Collection\Iterator;
+use Ulrichsg\Getopt\Getopt;
+use Ulrichsg\Getopt\Option;
+
+$getopt = new Getopt(array(
+    new Option('n', 'nodes', Getopt::REQUIRED_ARGUMENT),
+    new Option('k', 'key', Getopt::REQUIRED_ARGUMENT),
+));
+
+try {
+    $getopt->parse();
+} catch (UnexpectedValueException $e) {
+    echo $getopt->getHelpText();
+    throw $e;
+}
+
+$nodes = explode(',', $getopt['nodes']);
+
+$redisKey = $getopt['key'];
+
+echo "search key is: $redisKey" . "\n";
+
+if (null === $nodes || null === $redisKey) {
+    throw new UnexpectedValueException();
+}
+
+foreach ($nodes as $node) {
+    echo 'current node: ' . $node . "\n";
+    $client = new Predis\Client('tcp://' . $node, ['cluster' => 'redis']);
+    foreach (new Iterator\Keyspace($client, $redisKey) as $key) {
+        echo $key . "\n";
+        $client->del($key);
+    }
+}
